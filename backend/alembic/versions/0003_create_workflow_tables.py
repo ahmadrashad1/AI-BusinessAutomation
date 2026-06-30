@@ -4,9 +4,12 @@ Revision ID: 0003
 Revises: 0002
 Create Date: 2026-07-01 00:00:00.000000
 
-M3 migration: creates the four workflow-builder tables.
-Adds draft_definition JSONB to workflows — not in DatabaseDesign.md but required
-to persist canvas state between auto-saves without creating a version each time.
+M3: workflow builder tables.
+active_version_id and draft_definition are not in DatabaseDesign.md.
+  - draft_definition JSONB: persists canvas state between auto-saves without
+    creating a version on every keystroke.
+  - active_version_id UUID: denormalized pointer to the live version row so
+    API responses can return it without an extra join.
 """
 from alembic import op
 import sqlalchemy as sa
@@ -28,6 +31,7 @@ def upgrade() -> None:
         sa.Column("description", sa.Text, nullable=True),
         sa.Column("status", sa.String(20), nullable=False, server_default="draft"),
         sa.Column("current_version", sa.Integer, nullable=True),
+        sa.Column("active_version_id", postgresql.UUID(as_uuid=False), nullable=True),
         sa.Column("draft_definition", postgresql.JSONB, nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),

@@ -5,9 +5,8 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Any, Optional
-from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 
 
 # ── Graph primitives ───────────────────────────────────────────────────────────
@@ -43,37 +42,37 @@ class WorkflowGraph(BaseModel):
 class WorkflowCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
+    tags: Optional[list[str]] = None  # stored externally in M5; accepted now for forward compat
 
 
 class WorkflowUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = None
-    draft_definition: Optional[WorkflowGraph] = None
+    tags: Optional[list[str]] = None
+    definition: Optional[WorkflowGraph] = None  # saved as draft_definition
 
 
 class WorkflowResponse(BaseModel):
     id: str
     organization_id: str
     name: str
-    description: Optional[str]
-    status: str
-    current_version: Optional[int]
-    draft_definition: Optional[dict[str, Any]]
+    description: Optional[str] = None
+    status: str  # draft | published | archived
+    active_version_id: Optional[str] = None
+    current_version: Optional[int] = None
+    draft_definition: Optional[dict[str, Any]] = None
     created_at: datetime
     updated_at: datetime
 
     model_config = {"from_attributes": True}
 
 
-# ── Publish ────────────────────────────────────────────────────────────────────
+# ── Publish body ───────────────────────────────────────────────────────────────
 
 class PublishRequest(BaseModel):
-    definition: WorkflowGraph
-
-
-class PublishResponse(BaseModel):
-    workflow_id: str
-    version_number: int
+    """All fields optional — definition falls back to stored draft_definition."""
+    definition: Optional[WorkflowGraph] = None
+    change_summary: Optional[str] = None
 
 
 # ── Version ────────────────────────────────────────────────────────────────────
@@ -83,10 +82,22 @@ class WorkflowVersionResponse(BaseModel):
     workflow_id: str
     version_number: int
     definition: dict[str, Any]
-    created_by: Optional[str]
+    created_by: Optional[str] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+# ── Paginated lists ────────────────────────────────────────────────────────────
+
+class PaginatedWorkflows(BaseModel):
+    items: list[WorkflowResponse]
+    total: int
+
+
+class PaginatedVersions(BaseModel):
+    items: list[WorkflowVersionResponse]
+    total: int
 
 
 # ── Duplicate ──────────────────────────────────────────────────────────────────
