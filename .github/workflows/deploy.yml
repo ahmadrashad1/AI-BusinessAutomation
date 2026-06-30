@@ -1,0 +1,44 @@
+name: Deploy
+on:
+  push:
+    branches: [main]
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build + push API image
+        run: |
+          docker build -t ghcr.io/${{ github.repository }}/api:${{ github.sha }} ./backend
+          docker push ghcr.io/${{ github.repository }}/api:${{ github.sha }}
+      - name: Build + push Worker image
+        run: |
+          docker build -f backend/Dockerfile.worker \
+            -t ghcr.io/${{ github.repository }}/worker:${{ github.sha }} ./backend
+          docker push ghcr.io/${{ github.repository }}/worker:${{ github.sha }}
+      - name: Build + push Frontend image
+        run: |
+          docker build -t ghcr.io/${{ github.repository }}/frontend:${{ github.sha }} ./frontend
+          docker push ghcr.io/${{ github.repository }}/frontend:${{ github.sha }}
+  deploy-staging:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Deploy to staging
+        run: |
+          ssh deploy@$STAGING_HOST "
+            docker pull ghcr.io/${{ github.repository }}/api:${{ github.sha }} &&
+            docker pull ghcr.io/${{ github.repository }}/worker:${{ github.sha }} &&
+            docker pull ghcr.io/${{ github.repository }}/frontend:${{ github.sha }} &&
+            docker compose -f docker-compose.prod.yml up -d --no-deps api worker frontend
+          "
+  deploy-production:
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Deploy to production (rolling)
+        run: |
+          ssh deploy@$PROD_HOST "docker compose -f docker-compose.prod.yml up -d --no-deps \
+            --scale api=2 --scale worker=4 api worker frontend"
