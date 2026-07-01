@@ -4,12 +4,12 @@ services:
     image: pgvector/pgvector:pg16
     environment: { POSTGRES_DB: bpa_dev, POSTGRES_USER: bpa, POSTGRES_PASSWORD: bpa_dev_password }
     volumes: [pg_data:/var/lib/postgresql/data]
-    ports: ['5432:5432']
+    ports: ['5433:5432']
   redis:
     image: redis:7-alpine
     command: redis-server --appendonly yes
     volumes: [redis_data:/data]
-    ports: ['6379:6379']
+    ports: ['6380:6379']
   minio:
     image: minio/minio
     command: server /data --console-address ':9001'
